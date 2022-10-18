@@ -1,0 +1,33 @@
+WHITESPACE = _{ (" " | NEWLINE) }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
+
+Program = { SOI ~ Statement* ~ EOI }
+
+Statement = { EmptyStatement }
+// Statement = { LetStatement | EmptyStatement }
+
+LetStatement = { "let" ~ Identifier ~ "=" ~ Expression ~ ";" }
+EmptyStatement = { ";" }
+
+Expression = { LiteralExpression }
+
+LiteralExpression = { Number | Boolean }
+
+MutKeyword = { "mut" }
+
+Keywords = { If | Elif | Else }
+    If = { "if" }
+    Elif = { "elif" }
+    Else = { "else" }
+
+Integer = @{ ASCII_DIGIT+ }
+Arrow = { "->" }
+Identifier = @{ !Keywords ~ IdentifierStart ~ IdentifierContinue* }
+Float = @{ Integer ~ "." ~ Integer }
+Number = { Float | Integer }
+Boolean = { True | False }
+    True = { "true" }
+    False = { "false" }
+
+IdentifierStart = @{ ASCII_ALPHA | "_" }
+IdentifierContinue = @{ IdentifierStart ~ (IdentifierStart | Integer) }
