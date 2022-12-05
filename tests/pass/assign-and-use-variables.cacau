@@ -1,0 +1,5 @@
+let x = 5 * (1 + 2);
+let y = x * x;
+let z = x + y;
+
+let this_is_the_sum = x + y + z;

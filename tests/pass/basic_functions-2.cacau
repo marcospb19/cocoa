@@ -1,0 +1,7 @@
+fn succ(x) {
+    return x + 1;
+}
+
+let result = succ(succ(succ(1)));
+
+assert(result == 4);

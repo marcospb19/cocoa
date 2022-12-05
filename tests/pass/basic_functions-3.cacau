@@ -1,0 +1,5 @@
+fn add_five(x) {
+    return x + 5;
+}
+
+assert(add_five(5) == 10);

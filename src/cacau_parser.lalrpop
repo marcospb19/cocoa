@@ -1,1 +1,144 @@
-grammar;
+use std::str::FromStr;
+
+use lalrpop_util::ParseError;
+
+use crate::{
+    ast::{BinaryOperator, Expression, Statement, UnaryOperator, Value},
+    lexer::{Tok, self},
+};
+
+grammar<'input>(input: &'input str);
+
+pub Program: Vec<Statement> = Statement*;
+
+// Statements
+
+Statement: Statement = {
+    ExpressionStatement,
+    LetStatement,
+    EmptyStatement,
+    ReturnStatement,
+    FunctionDeclarationStatement,
+};
+ExpressionStatement: Statement = <Expression> ";" => Statement::Expression(<>);
+LetStatement: Statement = "let" <Identifier> "=" <Expression> ";" => Statement::Assignment(<>);
+EmptyStatement: Statement = ";" => Statement::Empty;
+ReturnStatement: Statement = "return" <Expression?> ";" => Statement::Return(<>);
+FunctionDeclarationStatement: Statement =
+    "fn" <Identifier> "(" <Identifier> ")" <BlockExpression> => Statement::FunctionDeclaration(<>);
+
+// Expressions
+
+Expression: Expression = Equality;
+
+BlockExpression: Vec<Statement> = "{" <Statement*> "}";
+
+Equality = Level<EqualityOperator, Comparison>;
+Comparison = Level<ComparisonOperator, Term>;
+Term = Level<TermOperator, Factor>;
+Factor = Level<FactorOperator, Unary>;
+Unary: Expression = {
+    <op:UnaryOperator> <expr:Unary> => Expression::UnaryOp(op, box expr),
+    Primary,
+};
+Primary: Expression = {
+    Literal => Expression::Literal(<>),
+    VariableExpression,
+    FunctionCallExpression,
+    "(" <Expression> ")",
+};
+VariableExpression: Expression = Identifier => Expression::Variable(<>);
+
+FunctionCallArguments: Vec<Expression> = ListOf<Expression>;
+FunctionCallExpression: Expression =
+    <Identifier> "(" <FunctionCallArguments> ")" => Expression::FunctionCall(<>);
+
+EqualityOperator: BinaryOperator = {
+    "==" => BinaryOperator::Equals,
+    "!=" => BinaryOperator::NotEquals,
+};
+ComparisonOperator: BinaryOperator = {
+    "<" => BinaryOperator::Less,
+    "<=" => BinaryOperator::LessOrEqual,
+    ">" => BinaryOperator::Greater,
+    ">=" => BinaryOperator::GreaterOrEqual,
+};
+TermOperator: BinaryOperator = {
+    "+" => BinaryOperator::Add,
+    "-" => BinaryOperator::Sub,
+};
+FactorOperator: BinaryOperator = {
+    "*" => BinaryOperator::Mul,
+    "/" => BinaryOperator::Div,
+};
+UnaryOperator: UnaryOperator = {
+    "not" => UnaryOperator::Not,
+    "-" => UnaryOperator::Minus,
+};
+
+// Atoms
+
+Literal: Value = {
+    "true" => Value::Bool(true),
+    "false" => Value::Bool(false),
+    NUMBER => Value::Number(i32::from_str(<>).unwrap()),
+};
+
+Identifier: String = {
+    IDENTIFIER => <>.into(),
+};
+
+// Macros
+
+/// Comma separated list of something
+ListOf<T>: Vec<T> = {
+    <mut list:(<T> ",")*> <last_element:T?> => match last_element {
+        None => list,
+        Some(last_element) => {
+            list.push(last_element);
+            list
+        }
+    }
+};
+
+/// Precedence level definition macro for binary expressions
+Level<Operator,NextLevel>: Expression = {
+    <l:Level<Operator,NextLevel>> <op:Operator> <r:NextLevel> =>
+        Expression::BinaryOp(box l, op, box r),
+    NextLevel,
+};
+
+// Lexer
+
+extern {
+    type Location = usize;
+    type Error = crate::CacauError;
+
+    enum Tok<'input> {
+        IDENTIFIER => Tok::Identifier(<&'input str>),
+        NUMBER => Tok::Number(<&'input str>),
+        "let" => Tok::Let,
+        "fn" => Tok::Fn,
+        "return" => Tok::Return,
+        "not" => Tok::Not,
+        "true" => Tok::True,
+        "false" => Tok::False,
+        ";" => Tok::SemiColon,
+        "," => Tok::Comma,
+        "=" => Tok::SingleEquals,
+        "(" => Tok::OpenParen,
+        ")" => Tok::CloseParen,
+        "{" => Tok::OpenBracket,
+        "}" => Tok::CloseBracket,
+        "+" => Tok::Plus,
+        "-" => Tok::Minus,
+        "*" => Tok::Mul,
+        "/" => Tok::Div,
+        "<" => Tok::Less,
+        "<=" => Tok::LessOrEqual,
+        "==" => Tok::DoubleEquals,
+        "!=" => Tok::NotEquals,
+        ">" => Tok::Greater,
+        ">=" => Tok::GreaterOrEqual,
+    }
+}

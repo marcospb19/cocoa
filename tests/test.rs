@@ -1,44 +1,68 @@
-// use cocoa::grammar::{CacauParser, Rule};
-// use glob::glob;
-// use pest::Parser;
+use glob::glob;
 
-// #[test]
-// fn test_cacau_passes() {
-//     for file in glob("tests/pass/*").unwrap() {
-//         let file = file.unwrap();
-//         let text = utils::read_file(file);
+#[test]
+fn test_cacau_passes() {
+    for path in glob("tests/pass/*").unwrap() {
+        let path = path.unwrap();
+        let input = test_utils::read_file(&path);
 
-//         let result = CacauParser::parse(Rule::Root, &text);
-//         if let Err(_) = result {
-//             panic!("expected a pass, but parsing failed: {result:#?}");
-//         }
-//     }
-// }
+        let ast = cocoa::parse_input(&input).unwrap_or_else(|err| {
+            panic!(
+                "expected file at '{path}' to parse succcessfully\n\
+                 parsing failed: {error:#?}",
+                path = path.display(),
+                error = Err::<(), _>(err)
+            )
+        });
 
-// #[test]
-// fn test_cacau_fails() {
-//     for file in glob("tests/fail/*").unwrap() {
-//         let file = file.unwrap();
-//         let text = utils::read_file(file);
+        cocoa::interpret_ast(&ast).unwrap_or_else(|err| {
+            panic!(
+                "expected file at '{path}' to be interpreted successfully\n\
+                 it failed: {error:#?}",
+                path = path.display(),
+                error = Err::<(), _>(err)
+            )
+        });
+    }
+}
 
-//         let result = CacauParser::parse(Rule::Root, &text);
-//         if let Ok(_) = result {
-//             panic!("expected a fail, but parsing passed: {result:#?}");
-//         }
-//     }
-// }
+#[test]
+fn test_cacau_fail_to_interpret() {
+    for path in glob("tests/fail-interpret/*").unwrap() {
+        let path = path.unwrap();
+        let input = test_utils::read_file(&path);
 
-// mod utils {
-//     use std::path::Path;
+        let ast = cocoa::parse_input(&input).unwrap_or_else(|err| {
+            panic!(
+                "expected file at '{path}' to parse succcessfully\n\
+                 parsing failed: {error:#?}",
+                path = path.display(),
+                error = Err::<(), _>(err)
+            )
+        });
 
-//     use fs_err as fs;
+        if cocoa::interpret_ast(&ast).is_ok() {
+            panic!(
+                "expected file at '{path}' to fail to be interpreted\n\
+                 it succeeded: {ast:#?}",
+                path = path.display(),
+                ast = Ok::<_, ()>(ast)
+            );
+        }
+    }
+}
 
-//     pub fn read_file(path: impl AsRef<Path>) -> String {
-//         fs::read_to_string(path.as_ref()).unwrap_or_else(|err| {
-//             panic!(
-//                 "Failed to read file '{}': {err}.",
-//                 path.as_ref().to_str().unwrap()
-//             );
-//         })
-//     }
-// }
+mod test_utils {
+    use std::path::Path;
+
+    use fs_err as fs;
+
+    pub fn read_file(path: impl AsRef<Path>) -> String {
+        fs::read_to_string(path.as_ref()).unwrap_or_else(|err| {
+            panic!(
+                "Failed to read file '{}': {err}.",
+                path.as_ref().to_str().unwrap()
+            );
+        })
+    }
+}
